@@ -44,7 +44,48 @@ class AutocompleteController {
   // 你要实现的方法
   getAutoSearch() {
     const search$ = (
-      /* ...你的代码... */
+      this.payload$.pipe(
+        debounceTime(500),
+        map(str => str.trim()),
+        // Use a little bit hack on here
+        filter(str => {
+          const strExists = !!str
+          const lengthCondition = str.length < 30
+          if (!lengthCondition) {
+            this.toggleWarning(true)
+            this.setLoading(false)
+          }
+          return strExists && lengthCondition
+        }),
+        tap(() => {
+          this.toggleWarning(false)
+        }),
+        switchMap(str => {
+          this.setLoading(true)
+
+          if (str.length > 30) {
+            this.toggleWarning(true)
+            this.setLoading(false)
+            return of(['error', []] as [string, any])
+          }
+          
+          return this.searchQuery(str).pipe(
+            map(result => {
+              /* On succeed */
+              this.setSearchResults(result)
+              return ['success', result]
+            }),
+            catchError(error => { 
+              /* Do something when request failure */ 
+              return ['error', []] as [string, any]
+            }),
+    
+          )
+        }),
+        tap(() => {
+          this.setLoading(false)
+        })
+      )
     )
 
     return search$;
